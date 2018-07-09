@@ -1,0 +1,220 @@
+<html>
+
+<head>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
+<script src="jquery.js"></script>
+<style>
+.dropdown{
+	color: black;
+	position:relative;
+	width: 38%;
+	z-index:1;
+	margin-left:10%;
+	box-shadow:1px 1px 2px 2px #888888;
+}
+.list{
+	position:relative;
+	color:black;
+	background-color:white;
+}
+.mainans{
+	position:relative;
+	padding-top:1%;
+	padding-bottom:1%;
+	padding-left:0.5%;
+	margin-top:5%;
+	margin-left:3%;
+	margin-right:30%;
+	text-align:left;
+	box-shadow:1px 1px 2px 2px #888888;
+}
+
+.mainans:empty{
+	display:none;
+}
+
+.dropdown:empty{
+	display:none;
+}
+
+.list_ans_sentence{
+	position:relative;
+	text-align:left;
+	color:gray;
+	margin-left:3%;
+	margin-right:30%;
+}
+
+.list_ans_document{
+	position:relative;
+	text-align:left;
+	color:blue;
+	margin-left:3%;
+	margin-right:30%;
+}
+
+.list_ans_link{
+	position:relative;
+	text-align:left;
+	color:green;
+	margin-left:3%;
+	margin-right:30%;
+	text-decoration: underline;
+	cursor:pointer;
+}
+.overall{
+	background-color:white;
+	height:100%;
+}
+
+.list:hover{
+	background-color: #D3D3D3;
+	color:black;
+	cursor:context-menu;
+}
+.answers{
+	box-shadow:1px 1px 2px 2px #888888;
+    	border-width: 1px;
+	position:absolute;
+	width:100%;
+	margin-top:8.5%;
+	z-index:-1;
+}
+
+</style>
+</head>
+
+<body  class="overall" style="font-family:Arial,Helvetica,sans-serif;">
+<div class="answers">
+</div>
+<img src="logo.jpg" style="position:absolute;width:80px;height:80px;margin-left:10px;">
+<input type="text" placeholder="Search.." id="searchinput" name="search" style="position:relative;width:38%;box-shadow:1px 2px #888888;height:33px;margin-left:10%;margin-top:2%;" onkeyup="auto_complete()">
+<button type="submit"  onclick="call_search()" style="cursor:pointer;margin-top:2%;position:relative;width:5%;height:33px;box-shadow:1px 2px #888888;"><i class="fa fa-search"></i></button>
+<button type="submit"  onclick="call_search()" style="cursor:pointer;margin-top:2%;position:absolute;width:70px;height:33px;box-shadow:1px 2px #888888;margin-left:350px"><i class="fa fa-envelope"></i></button>
+<!input id="searchinput" type="text" name="something" value="" onkeyup="auto_complete()">
+<!button type="button" onclick="call_search()"><!/button> 
+<div class="dropdown" id="auto-complete">
+</div>
+<div class="mainans" id="topans"></div> 
+<div class="allans" id="everyans"></div>
+
+
+
+
+
+<script>
+
+function clearBox(elementID)
+{
+    	document.getElementById(elementID).innerHTML = "";
+}
+
+function value_change(thiselem)
+{
+	$("#searchinput").val(thiselem.innerHTML);
+	call_search();
+}
+
+function auto_complete(){
+	window.stop()
+	var current_input = $("#searchinput").val();
+	var url = "http://10.9.6.66:4000/jsonrpc";
+	var data = {
+       	 	method: 'autocomplete',
+        	params: {'input_query' : current_input},
+        	jsonrpc: "2.0",
+        	id: 2,
+    		  };
+	smart_ajax_request(url,data,"",function(response){
+		clearBox("topans");
+		clearBox("auto-complete");
+		console.log(response)
+		for(var i=0;i<response.result.length;i++){
+			$("#auto-complete").append("<div class='list' id="+i+"><ul style=' padding: 0px 0px 0px 0px;border: 0px 0px 0px 0px;margin: 2px 2px 2px 2px; ' id= "+ i +" onclick='value_change(this)'>"+response.result[i]+"</ul></div>");
+		}
+	  }
+	);
+}
+
+
+function call_search(){
+	window.stop();
+	clearBox("everyans");
+	var input_query = $("#searchinput").val();	
+	console.log(input_query)
+	var url = "http://10.9.6.66:4000/jsonrpc";
+	var data = {
+       	 	method: 'run_search_engine',
+        	params: {'input_query' : input_query},
+        	jsonrpc: "2.0",
+        	id: 1,
+    		  };
+	smart_ajax_request(url,data,"",function(response){
+		console.log(response);
+		clearBox("topans");
+		clearBox("auto-complete");
+		if(response.result['error']==null)
+		{
+			$("#topans").append("<p style='font-weight:bold;'>"+response.result['main_ans']+"</p>");
+		}
+		else if(response.result['error']=="Match Not Found.")
+		{
+			$("#topans").append("<p style='color:red;'>The query you are looking for was not found in any of our documents. Please review your query for spellings or please try other keywords. Or you can try one of our suggestions.</p>");
+		}
+		else
+		{
+			$("#topans").append("<p style='color:red;'>The query you are looking for was too generic and one or more keywords were found in all the documents. You might have mis-spelt a couple of words as well. You can try one of our suggestions or try another query.</p>");
+		}
+		
+		for(var i=1;i<=10;i++)
+		{	
+			if(response.result["Ans_"+i]!=null)
+			{
+			var doc_num = response.result["Ans_"+i][0];
+			var ans;
+			var len = response.result["Ans_"+i][1].split(' ').length;
+			if(len<40)
+			{
+				ans = response.result["Ans_"+i][1];
+			}
+			else
+			{
+				ans = response.result["Ans_"+i][1].split(' ').slice(0,20).join(' ') + "..... " + response.result["Ans_"+i][1].split(' ').slice(len-21,len).join(' ');
+			}
+			$("#everyans").append("<div><h2 class='list_ans_document'>Document "+ doc_num +"</h2><h5 class='list_ans_link'>Your link here</h5><p class='list_ans_sentence'>" + ans + "</p></div>");		
+			}
+		}	
+	});
+}
+
+
+function smart_ajax_request(url, data, errorMessage, successFunction) {
+                var request = $.ajax({
+                    type: 'POST',
+                    url: url,
+		    contentType: "application/json; charset=utf-8",
+		    traditional: true,
+                    data: JSON.stringify(data),
+                    //dataType: 'json',
+		    //headers: {'Access-Control-Allow-Origin': '*'},
+		    //crossDomain: true
+                });
+		console.log(request)
+		/*$.post(url, JSON.stringify(data), 
+    			function(returnedData){
+         			console.log(returnedData);
+		}).fail(function(){
+      				console.log("error");
+		});*/
+                request.done(successFunction);
+         };// ajax function end
+
+</script>
+
+</body>
+
+
+
+</html>
+
+

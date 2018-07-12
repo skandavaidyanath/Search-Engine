@@ -8,14 +8,13 @@ import pickle
 from collections import defaultdict
 import spellcheck
 from trie import TrieNode
-#import hover-live
-
-
+from reco_sys import SAE
+import torch
 
 
 @dispatcher.add_method
-def run_search_engine(input_query):
-	return QAlive2.live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts)
+def run_search_engine(input_query): 
+	return QAlive2.live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links) ##
 
 @dispatcher.add_method
 def autocomplete(input_query):
@@ -30,6 +29,7 @@ def application(request):
 
 
 if __name__ == '__main__':
+	id_links = pickle.load(open('id_links.txt','rb')) ##
     	model = gensim.models.Word2Vec.load('vocab.txt')
 	vocabulary = list()
 	length_preprocessed = 0
@@ -61,5 +61,6 @@ if __name__ == '__main__':
 		nod = pickle.load(fp)		
 		list_of_document_tfidf_dicts = pickle.load(fp)
 	fp.close()
+	sae = torch.load('my_sae.pt')
     	run_simple('10.19.1.166', 4000, application)
 

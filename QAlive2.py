@@ -16,6 +16,8 @@ import torch.nn.parallel
 import torch.optim as optim
 import torch.utils.data
 from torch.autograd import Variable
+from reco_sys import SAE
+import pymysql
 
 
 stop_words = ["i", "me", "my", "myself", "we", "our", "ours", "ourselves", "you", "your", "yours", "yourself", "yourselves", "he", "him", "his", "himself", "she", "her", "hers", "herself", "it", "its", "itself", "they", "them", "their", "theirs", "themselves", "what", "which", "who", "whom", "this", "that", "these", "those", "am", "is", "are", "was", "were", "be", "been", "being", "have", "has", "had", "having", "do", "does", "did", "doing", "a", "an", "the", "and", "but", "if", "or", "because", "as", "until", "while", "of", "at", "by", "for", "with", "about", "against", "between", "into", "through", "during", "before", "after", "above", "below", "to", "from", "up", "down", "in", "out", "on", "off", "over", "under", "again", "further", "then", "once", "here", "there", "when", "where", "why", "how", "all", "any", "both", "each", "few", "more", "most", "other", "some", "such", "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s", "t", "can", "will", "just", "don", "should", "now"]
@@ -93,7 +95,15 @@ def get_expanded_query(query, model, vocab):
 	for word in unnecessary:
 		if word in expanded_query:
 			expanded_query.remove(word)
-	return expanded_query
+	refined_expanded_query = list()
+	for word in expanded_query:
+		flag = 0
+		for char in word:
+			if not (('a'<= char <='z') or (char=='_')):				
+				flag = 1
+		if flag == 0:		
+			refined_expanded_query.append(word)
+	return refined_expanded_query
 
 
 def get_relevantdocs(expanded_query, inverted_index):
@@ -155,7 +165,7 @@ def get_bm25(relevant_sent, inverted_index, expanded_query, preprocessed_tuple):
 
 	for sent_number in relevant_sent:
 		for word in expanded_query:	
-			bm25_scores[sent_number] += float(idf_words[word]*preprocessed_tuple[sent_number-1][1].count(word)*2.5)/(preprocessed_tuple[sent_number-1][1].count(word) + 2.5*(0.25+(float(number_of_sent)/avg_dl)))
+			bm25_scores[sent_number] += float(idf_words[word]*preprocessed_tuple[sent_number-1][1].count(word)*2.5)/(preprocessed_tuple[sent_number-1][1].count(word) + 1.5*(0.25+ 0.75*(float(number_of_sent)/avg_dl)))
 	return bm25_scores
 
 
@@ -206,7 +216,7 @@ def get_inverted_index_query_terms(document_tuples, dictionary):
 
 	
 
-def live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts):
+def live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links):
 ################################ Live Code ######################################## 
 	ERROR_MESSAGE = ""
 	ANSWER = {"error":None, "main_ans":None, "Ans_1":None, "Ans_2":None, "Ans_3":None, "Ans_4":None, "Ans_5":None, "Ans_6":None, "Ans_7":None, "Ans_8":None, "Ans_9":None, "Ans_10":None }
@@ -228,9 +238,7 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 			return ANSWER
 	except ZeroDivisionError:
 		ANSWER['error'] = 'Please be more specific.'
-		return ANSWER
-	'''
-	sae = torch.load('my_sae.pt')
+		return ANSWER	
 	user_id = 50
 	db = pymysql.connect("localhost", "qasys", "321@demo", "QA_system")
 	cursor = db.cursor()
@@ -240,6 +248,7 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 	nb_documents = len(doc_index) 	
 	user_document_array = np.zeros(nb_documents)
 	doc_ids = doc_index.values()
+	userId = 46                 #Add this to main
 	try:
 		sql = "SELECT DOC_ID, CLICKS FROM user_clicks WHERE USER_ID = " + str(userId)
 		cursor.execute(sql)		
@@ -251,13 +260,12 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 		print "Error in getting user viewed documents"
 		db.rollback()
 	user_document_array = torch.FloatTensor(user_document_array)
-  	reco_sys_scores = sae.forward(Variable(user_document_array).unsqueeze(0))
+  	reco_sys_scores = [item.item() for item in sae.forward(Variable(user_document_array).unsqueeze(0))[0]]
 	db.close()
 	scores = dict()
-	factor = 0.01
+	factor = 0.03
 	for doc_number in tfidf_scores.keys():
-		scores[doc_number] = 0.9*tfidf_scores[doc_number] + 0.1*factor*reco_sys_scores[doc_number]	
-	'''
+		scores[doc_number] = 0.9 * tfidf_scores[doc_number] + 0.1 * factor * reco_sys_scores[document_dictionary.keys().index(doc_number)]	#same as doc_number - 1 !
 	heap_docs = [(-value, key) for key,value in scores.items()]
 	largest_docs = heapq.nsmallest(10, heap_docs)
 	largest_docs = [(key, -value) for value, key in largest_docs]	
@@ -300,8 +308,8 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 			for line in fp:
 				if doc == doc_number_of_sentence:
 					#ANSWER += 'SENTENCE : ' + str(line.split('. ')[index_ans]) + '\n'
-					ANSWER['Ans_' + str(doc_num_ans)] = document_dictionary[doc_number_of_sentence], str(line.split('. ')[index_ans])
-				doc += 1
+					ANSWER['Ans_' + str(doc_num_ans)] = document_dictionary[doc_number_of_sentence], str(line.split('. ')[index_ans]), str(id_links[document_dictionary[doc_number_of_sentence]]) ##
+				doc += 1 
 			fp.close()
 			sentenced_docs.remove(doc_number_of_sentence)
 		else:
@@ -310,7 +318,7 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 
 
 def main():
-	input_query = 'primary sodium pumps'
+	input_query = 'primary argon purification circuit'
 	model = gensim.models.Word2Vec.load('vocab.txt')
 	vocabulary = list()
 	length_preprocessed = 0
@@ -330,8 +338,11 @@ def main():
 	with open('tfidf-scores.txt', 'rb') as fp:
 		nod = pickle.load(fp)		
 		list_of_document_tfidf_dicts = pickle.load(fp)
+	id_items = pickle.load(open('id_links.txt','rb'))
+	sae = torch.load('my_sae.pt')
 	print 'Executing function here'
-	answer = live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts)
+	answer = live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts,  sae, id_items)
+	print answer
 
 if __name__ == '__main__':
 	main()

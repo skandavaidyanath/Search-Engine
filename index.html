@@ -1,8 +1,10 @@
 <html>
 
 <head>
+<meta charset="utf-8"/>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.min.css">
 <script src="jquery.js"></script>
+<script src="PorterStemmer1980.js"></script>
 <style>
 .dropdown{
 	color: black;
@@ -12,11 +14,13 @@
 	margin-left:10%;
 	box-shadow:1px 1px 2px 2px #888888;
 }
+
 .list{
 	position:relative;
 	color:black;
 	background-color:white;
 }
+
 .mainans{
 	position:relative;
 	padding-top:1%;
@@ -51,6 +55,7 @@
 	color:blue;
 	margin-left:3%;
 	margin-right:30%;
+	cursor:pointer;
 }
 
 .list_ans_link{
@@ -59,9 +64,8 @@
 	color:green;
 	margin-left:3%;
 	margin-right:30%;
-	text-decoration: underline;
-	cursor:pointer;
 }
+
 .overall{
 	background-color:white;
 	height:100%;
@@ -72,6 +76,7 @@
 	color:black;
 	cursor:context-menu;
 }
+
 .answers{
 	box-shadow:1px 1px 2px 2px #888888;
     	border-width: 1px;
@@ -79,6 +84,14 @@
 	width:100%;
 	margin-top:8.5%;
 	z-index:-1;
+}
+
+a:link {
+    text-decoration: none;
+}
+
+a:hover {
+    text-decoration: underline;
 }
 
 </style>
@@ -118,7 +131,7 @@ function value_change(thiselem)
 function auto_complete(){
 	window.stop()
 	var current_input = $("#searchinput").val();
-	var url = "http://10.9.6.66:4000/jsonrpc";
+	var url = "http://10.19.1.166:4000/jsonrpc";
 	var data = {
        	 	method: 'autocomplete',
         	params: {'input_query' : current_input},
@@ -142,7 +155,7 @@ function call_search(){
 	clearBox("everyans");
 	var input_query = $("#searchinput").val();	
 	console.log(input_query)
-	var url = "http://10.9.6.66:4000/jsonrpc";
+	var url = "http://10.19.1.166:4000/jsonrpc";
 	var data = {
        	 	method: 'run_search_engine',
         	params: {'input_query' : input_query},
@@ -155,7 +168,56 @@ function call_search(){
 		clearBox("auto-complete");
 		if(response.result['error']==null)
 		{
-			$("#topans").append("<p style='font-weight:bold;'>"+response.result['main_ans']+"</p>");
+			var split_query = [];
+			for(var ind in input_query.split(' '))
+			{
+				split_query.push(stemmer(input_query.split(' ')[ind]));
+			}
+			var ans = "";
+			var split_mainans = response.result['main_ans'].split(' ');
+			//var stemmed_mainans = stemmer(response.result['main_ans']).split(' ')
+			var stemmed_mainans = [];
+			for(var ind in split_mainans)
+			{
+				stemmed_mainans.push(stemmer(split_mainans[ind]));
+			}
+			var len = response.result['main_ans'].split(' ').length;
+			if(len<40)
+			{
+				ans = response.result['main_ans'];
+			}
+			else
+			{
+				ans = ans + split_mainans.slice(0,20).join(' ');
+				var index = 20, flag;
+				for(; index < len-20; index++)
+				{	
+					if(split_query.indexOf(stemmed_mainans[index].toLowerCase()) >= 0)
+					{
+						if(flag + 1 != index)
+							ans = ans + " .... " + split_mainans[index];
+						else
+							ans = ans + " " + split_mainans[index];
+						flag = index;
+					}
+				}
+				ans = ans + " " + split_mainans.slice(len-20, len).join(' ');
+			}
+			var top_ans = "";
+			top_ans = top_ans + "<p>";
+			ans = ans.split(' ');		
+			for(var ind in ans)
+				{
+					var word = ans[ind];
+					if(split_query.indexOf(stemmer(word.toLowerCase())) >= 0)
+					{
+						top_ans = top_ans + "<b>" + word + "</b> ";	
+					}
+					else
+						top_ans = top_ans + word + " ";	
+				}
+			top_ans = top_ans + "</p>";
+			$("#topans").append(top_ans);
 		}
 		else if(response.result['error']=="Match Not Found.")
 		{
@@ -170,18 +232,58 @@ function call_search(){
 		{	
 			if(response.result["Ans_"+i]!=null)
 			{
-			var doc_num = response.result["Ans_"+i][0];
-			var ans;
-			var len = response.result["Ans_"+i][1].split(' ').length;
-			if(len<40)
-			{
-				ans = response.result["Ans_"+i][1];
-			}
-			else
-			{
-				ans = response.result["Ans_"+i][1].split(' ').slice(0,20).join(' ') + "..... " + response.result["Ans_"+i][1].split(' ').slice(len-21,len).join(' ');
-			}
-			$("#everyans").append("<div><h2 class='list_ans_document'>Document "+ doc_num +"</h2><h5 class='list_ans_link'>Your link here</h5><p class='list_ans_sentence'>" + ans + "</p></div>");		
+				var split_query = [];
+				for(var ind in input_query.split(' '))
+				{
+					split_query.push(stemmer(input_query.split(' ')[ind]));
+				}
+				var doc_num = response.result["Ans_"+i][0];
+				var len = response.result["Ans_"+i][1].split(' ').length;
+				var ans = "";
+				var split_ans = response.result["Ans_"+i][1].split(' ');
+				var stemmed_ans = [];
+				for(var ind in split_ans)
+				{
+					stemmed_ans.push(stemmer(split_ans[ind]));
+				}
+				if(len<40)
+				{
+					ans = response.result["Ans_"+i][1];
+				}
+				else
+				{
+					//ans = response.result["Ans_"+i][1].split(' ').slice(0,20).join(' ') + "..... " + response.result["Ans_"+i][1].split(' ').slice(len-21,len).join(' ');
+					ans = ans + split_ans.slice(0,20).join(' ');
+					var index = 20;
+					for(; index < len-20; index++)
+					{	
+						if(split_query.indexOf(stemmed_ans[index].toLowerCase()) >= 0)
+						{
+							if(flag + 1 != index)
+								ans = ans + " .... " + split_ans[index];
+							else
+								ans = ans + " " + split_ans[index];
+							flag = index;
+					}
+					}
+					ans = ans + " " + split_ans.slice(len-20, len).join(' ');
+				}
+				//$("#everyans").append("<div><h2 class='list_ans_document'>Document "+ doc_num +"</h2><h5 class='list_ans_link'>Your link here</h5><p class='list_ans_sentence'>" + ans + "</p></div>");	
+				link = "http://10.30.1.21/showFile.php?file=" + response.result["Ans_"+i][2]
+				var every_ans = "<div><h2 class='list_ans_document'> <a href="+ link + "> Document "+ doc_num +"</a></h2><h5 class='list_ans_link'>" + link + "</h5><p class='list_ans_sentence'>";
+				ans = ans.split(' ');		
+				for(var ind in ans)
+				{
+					var word = ans[ind]
+					if(split_query.indexOf(stemmer(word.toLowerCase())) >= 0)
+					{
+						every_ans = every_ans + "<b>" + word + "</b> ";	
+					}
+					else
+						every_ans = every_ans + word + " ";	
+				}
+				every_ans = every_ans + "</p></div>";
+				$("#everyans").append(every_ans);	
 			}
 		}	
 	});
@@ -195,19 +297,10 @@ function smart_ajax_request(url, data, errorMessage, successFunction) {
 		    contentType: "application/json; charset=utf-8",
 		    traditional: true,
                     data: JSON.stringify(data),
-                    //dataType: 'json',
-		    //headers: {'Access-Control-Allow-Origin': '*'},
-		    //crossDomain: true
                 });
 		console.log(request)
-		/*$.post(url, JSON.stringify(data), 
-    			function(returnedData){
-         			console.log(returnedData);
-		}).fail(function(){
-      				console.log("error");
-		});*/
                 request.done(successFunction);
-         };// ajax function end
+         };
 
 </script>
 

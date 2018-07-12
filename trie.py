@@ -1,7 +1,6 @@
 import pickle
 
 
-
 class TrieNode(object):
     """
     Our trie node implementation. Very basic. But does the job
@@ -78,7 +77,7 @@ class TrieNode(object):
             results.add(prefix)
         if not self.children: 
             return results
-        return reduce(lambda a, b: a | b,  [node.all_suffixes(prefix + node.char) for node in self.children]) 
+        return results | reduce(lambda a, b: a | b,  [node.all_suffixes(prefix + node.char) for node in self.children]) 
 
     def autocomplete(self, prefix):
         node = self
@@ -88,7 +87,17 @@ class TrieNode(object):
 	    for child in node.children:
 		if child.char == char:
 			node = child
-        return list(node.all_suffixes(prefix))	
+        auto_list = list(node.all_suffixes(prefix))
+	refined_auto_list = list()
+	for word in auto_list:
+		flag = 0
+		for char in word:
+			if not (('a'<= char <='z') or ('A' <= char <= 'Z') or (char==' ')):				
+				flag = 1
+		if flag == 0:		
+			refined_auto_list.append(word)
+	return refined_auto_list
+
 
 
 if __name__ == '__main__':

@@ -14,7 +14,7 @@ import torch
 
 @dispatcher.add_method
 def run_search_engine(input_query): 
-	return QAlive2.live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links) ##
+	return QAlive2.live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links, id_titles) 
 
 @dispatcher.add_method
 def autocomplete(input_query):
@@ -29,7 +29,8 @@ def application(request):
 
 
 if __name__ == '__main__':
-	id_links = pickle.load(open('id_links.txt','rb')) ##
+	id_links = pickle.load(open('id_links.txt','rb')) 
+	id_titles = pickle.load(open('id_titles.txt','rb'))
     	model = gensim.models.Word2Vec.load('vocab.txt')
 	vocabulary = list()
 	length_preprocessed = 0

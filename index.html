@@ -222,13 +222,15 @@ function call_search(){
 		else if(response.result['error']=="Match Not Found.")
 		{
 			$("#topans").append("<p style='color:red;'>The query you are looking for was not found in any of our documents. Please review your query for spellings or please try other keywords. Or you can try one of our suggestions.</p>");
+			return;
 		}
 		else
 		{
 			$("#topans").append("<p style='color:red;'>The query you are looking for was too generic and one or more keywords were found in all the documents. You might have mis-spelt a couple of words as well. You can try one of our suggestions or try another query.</p>");
+			return;
 		}
-		
-		for(var i=1;i<=10;i++)
+		console.log(Object.keys(response.result).length);
+		for(var i=1;i<=Object.keys(response.result).length-2;i++)
 		{	
 			if(response.result["Ans_"+i]!=null)
 			{
@@ -269,8 +271,9 @@ function call_search(){
 					ans = ans + " " + split_ans.slice(len-20, len).join(' ');
 				}
 				//$("#everyans").append("<div><h2 class='list_ans_document'>Document "+ doc_num +"</h2><h5 class='list_ans_link'>Your link here</h5><p class='list_ans_sentence'>" + ans + "</p></div>");	
-				link = "http://10.30.1.21/showFile.php?file=" + response.result["Ans_"+i][2]
-				var every_ans = "<div><h2 class='list_ans_document'> <a href="+ link + "> Document "+ doc_num +"</a></h2><h5 class='list_ans_link'>" + link + "</h5><p class='list_ans_sentence'>";
+				link = "http://10.30.1.21/showFile.php?file=" + response.result["Ans_"+i][2];
+				doc_name = response.result["Ans_"+i][3];
+				var every_ans = "<div><h4 class='list_ans_document'> <a href="+ link + ">"+ doc_name +"</a></h4><h5 class='list_ans_link'>" + link + "</h5><p class='list_ans_sentence'>";
 				ans = ans.split(' ');		
 				for(var ind in ans)
 				{

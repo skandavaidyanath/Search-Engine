@@ -216,10 +216,10 @@ def get_inverted_index_query_terms(document_tuples, dictionary):
 
 	
 
-def live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links):
+def live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts, sae, id_links, id_titles):
 ################################ Live Code ######################################## 
 	ERROR_MESSAGE = ""
-	ANSWER = {"error":None, "main_ans":None, "Ans_1":None, "Ans_2":None, "Ans_3":None, "Ans_4":None, "Ans_5":None, "Ans_6":None, "Ans_7":None, "Ans_8":None, "Ans_9":None, "Ans_10":None }
+	ANSWER = {"error":None, "main_ans":None}
 	stemmer = PorterStemmer()
 	preprocessed_query = gensim.utils.simple_preprocess(input_query, max_len = 20)
 	filtered_sentence = []
@@ -267,7 +267,7 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 	for doc_number in tfidf_scores.keys():
 		scores[doc_number] = 0.9 * tfidf_scores[doc_number] + 0.1 * factor * reco_sys_scores[document_dictionary.keys().index(doc_number)]	#same as doc_number - 1 !
 	heap_docs = [(-value, key) for key,value in scores.items()]
-	largest_docs = heapq.nsmallest(10, heap_docs)
+	largest_docs = heapq.nsmallest(len(relevant_docs), heap_docs)
 	largest_docs = [(key, -value) for value, key in largest_docs]	
 ############################### End of document ranking ######################################
 	preprocessed_tuple = []
@@ -308,7 +308,7 @@ def live(model, input_query, vocabulary, length_preprocessed, inverted_index, do
 			for line in fp:
 				if doc == doc_number_of_sentence:
 					#ANSWER += 'SENTENCE : ' + str(line.split('. ')[index_ans]) + '\n'
-					ANSWER['Ans_' + str(doc_num_ans)] = document_dictionary[doc_number_of_sentence], str(line.split('. ')[index_ans]), str(id_links[document_dictionary[doc_number_of_sentence]]) ##
+					ANSWER['Ans_' + str(doc_num_ans)] = document_dictionary[doc_number_of_sentence], str(line.split('. ')[index_ans]), str(id_links[document_dictionary[doc_number_of_sentence]]), str(id_titles[document_dictionary[doc_number_of_sentence]]) ##
 				doc += 1 
 			fp.close()
 			sentenced_docs.remove(doc_number_of_sentence)
@@ -339,9 +339,10 @@ def main():
 		nod = pickle.load(fp)		
 		list_of_document_tfidf_dicts = pickle.load(fp)
 	id_items = pickle.load(open('id_links.txt','rb'))
+	id_titles = pickle.load(open('id_titles.txt','rb'))
 	sae = torch.load('my_sae.pt')
 	print 'Executing function here'
-	answer = live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts,  sae, id_items)
+	answer = live(model, input_query, vocabulary, length_preprocessed, inverted_index, document_dictionary, norms, nod, list_of_document_tfidf_dicts,  sae, id_items, id_titles)
 	print answer
 
 if __name__ == '__main__':
